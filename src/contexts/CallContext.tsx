@@ -125,16 +125,6 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Initiating call to:', peerName);
       isCallerRef.current = true;
-      
-      // Set initial call state
-      setCurrentCall({
-        peerId,
-        peerName,
-        peerPhoto,
-        duration: 0,
-        isMuted: false,
-        status: 'connecting'
-      });
 
       // Request microphone access
       const stream = await requestMicrophoneAccess();
@@ -145,6 +135,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       localStreamRef.current = stream;
+
+      // Set initial call state after getting stream
+      setCurrentCall({
+        peerId,
+        peerName,
+        peerPhoto,
+        duration: 0,
+        isMuted: false,
+        status: 'connecting' // Initially connecting to get offer
+      });
 
       // Create peer connection
       const peerConnection = createPeerConnection(
