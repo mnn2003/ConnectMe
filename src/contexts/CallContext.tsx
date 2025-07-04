@@ -187,7 +187,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success(`Calling ${peerName}...`);
 
       // Listen for call updates
+      let lastReceiverCandidatesCount = 0;
       const unsubscribe = CallService.subscribeToCall(callId, async (callData) => {
+        console.log('Call data updated:', callData);
         if (!callData) return;
 
         if (callData.status === 'declined') {
@@ -205,6 +207,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             toast.error('Failed to establish connection');
             endCall();
           }
+        } else if (callData.receiverCandidates && callData.receiverCandidates.length > lastReceiverCandidatesCount) {
+          // Add new receiver ICE candidates
+          for (let i = lastReceiverCandidatesCount; i < callData.receiverCandidates.length; i++) {
+            try {
+              const candidate = new RTCIceCandidate(callData.receiverCandidates[i]);
+              await peerConnection.addIceCandidate(candidate);
+              console.log('Added receiver ICE candidate:', candidate);
+            } catch (error) {
+              console.error('Error adding receiver ICE candidate:', error);
+            }
+          }
+          lastReceiverCandidatesCount = callData.receiverCandidates.length;
+        } else if (callData.status === 'connected' && currentCall?.status !== 'connected') {
+          // Ensure status is updated if accepted via candidates exchange
+           setCurrentCall(prev => prev ? { ...prev, status: 'connected' } : null);
         } else if (callData.status === 'ended') {
           endCall();
           unsubscribe();
@@ -274,6 +291,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await CallService.acceptCall(incomingCall.id, answer);
 
       currentCallDocRef.current = incomingCall.id;
+      
       setIncomingCall(null);
       startTimer();
       toast.success('Call accepted');
@@ -283,6 +301,29 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error(`Failed to accept call: ${error.message}`);
       declineCall();
     }
+
+    // Listen for call updates (specifically caller candidates)
+    let lastCallerCandidatesCount = 0;
+    const unsubscribe = CallService.subscribeToCall(incomingCall.id, async (callData) => {
+      console.log('Call data updated (receiver):', callData);
+       if (!callData) return;
+      
+       if (callData.callerCandidates && callData.callerCandidates.length > lastCallerCandidatesCount) {
+          // Add new caller ICE candidates
+          for (let i = lastCallerCandidatesCount; i < callData.callerCandidates.length; i++) {
+            try {
+              const candidate = new RTCIceCandidate(callData.callerCandidates[i]);
+              if(peerConnectionRef.current) { // Ensure peer connection exists
+                await peerConnectionRef.current.addIceCandidate(candidate);
+                 console.log('Added caller ICE candidate:', candidate);
+              }
+            } catch (error) {
+              console.error('Error adding caller ICE candidate:', error);
+            }
+          }
+          lastCallerCandidatesCount = callData.callerCandidates.length;
+       }
+    });
   };
 
   const declineCall = async () => {
