@@ -9,8 +9,6 @@ const CallInterface: React.FC = () => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
-  if (!currentCall) return null;
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -46,6 +44,8 @@ const CallInterface: React.FC = () => {
         return 'text-white';
     }
   };
+
+  if (!currentCall) return null; // Still hide the component when there's no active or ringing call
 
   if (isMinimized) {
     return (
@@ -184,6 +184,7 @@ const CallInterface: React.FC = () => {
       </div>
 
       {/* Call Controls */}
+      {/* Mute, Speaker, and End Call buttons are now always visible when in a call */}
       <div className="flex items-center space-x-8">
         <motion.button
           whileHover={{ scale: 1.1 }}
